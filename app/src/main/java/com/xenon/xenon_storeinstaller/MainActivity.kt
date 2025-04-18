@@ -1,4 +1,4 @@
-package com.xenon.xenonstoreinstaller
+package com.xenon.xenon_storeinstaller
 
 import android.Manifest
 import android.app.DownloadManager
