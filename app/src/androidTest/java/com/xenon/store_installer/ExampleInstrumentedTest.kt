@@ -1,4 +1,4 @@
-package com.xenon.xenon_storeinstaller
+package com.xenon.store_installer
 
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.ext.junit.runners.AndroidJUnit4
@@ -19,6 +19,6 @@ class ExampleInstrumentedTest {
     fun useAppContext() {
         // Context of the app under test.
         val appContext = InstrumentationRegistry.getInstrumentation().targetContext
-        assertEquals("com.xenon.xenon_storeinstaller", appContext.packageName)
+        assertEquals("com.xenon.store_installer", appContext.packageName)
     }
 }

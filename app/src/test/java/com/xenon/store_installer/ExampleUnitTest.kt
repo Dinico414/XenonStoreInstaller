@@ -1,4 +1,4 @@
-package com.xenon.xenon_storeinstaller
+package com.xenon.store_installer
 
 import org.junit.Test
 
