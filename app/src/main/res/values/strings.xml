@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">Xenon-Store installer</string>
+    <string name="app_name">XenonStoreInstaller</string>
     <string name="uninstall">Uninstall</string>
     <string name="install">Install</string>
     <string name="failed_to_find">Failed to find download URL</string>
