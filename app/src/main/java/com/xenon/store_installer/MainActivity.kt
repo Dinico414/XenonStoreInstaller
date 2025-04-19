@@ -5,12 +5,15 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.drawable.AnimationDrawable
+import android.graphics.drawable.Drawable
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import android.net.Uri
 import android.os.Bundle
+import android.os.Handler
+import android.os.SystemClock
 import android.provider.Settings
 import android.util.Log
 import android.view.View
@@ -32,6 +35,7 @@ import com.xenon.store_installer.AppEntryState.INSTALLED_AND_OUTDATED
 import com.xenon.store_installer.AppEntryState.NOT_INSTALLED
 import com.xenon.store_installer.databinding.ActivityMainBinding
 import com.xenon.store_installer.viewmodel.AppListViewModel
+import kotlinx.coroutines.Runnable
 import okhttp3.Cache
 import okhttp3.Call
 import okhttp3.Callback
@@ -44,6 +48,8 @@ import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
+import java.util.Timer
+import java.util.TimerTask
 
 @Suppress("DEPRECATION", "SameParameterValue")
 class MainActivity : AppCompatActivity() {
@@ -109,15 +115,16 @@ class MainActivity : AppCompatActivity() {
                     binding.progressBar.visibility = View.VISIBLE
                     binding.progressBar.progress = appItem.bytesDownloaded.toInt()
                     binding.progressBar.max = appItem.fileSize.toInt()
+                    setMainBackground(R.drawable.gradient_list_1)
                 }
 
-                INSTALLED,
-                INSTALLED_AND_OUTDATED -> {
+                INSTALLED -> {
                     binding.downloadButton.text = getString(R.string.uninstall)
                     binding.progressBar.visibility = View.GONE
+                    setMainBackground(R.drawable.gradient_list_1)
                 }
 
-                NOT_INSTALLED -> {
+                NOT_INSTALLED, INSTALLED_AND_OUTDATED -> {
                     binding.downloadButton.text = getString(R.string.install)
                     binding.progressBar.visibility = View.GONE
                 }
@@ -161,14 +168,75 @@ class MainActivity : AppCompatActivity() {
 
         refreshAppItem(appListModel.storeAppItem)
     }
+
+    private var currentMainBackground: Int = 0
+
+    private fun setMainBackground(background: Int, reset: Boolean = false) {
+        if (background == currentMainBackground && !reset) return
+
+        Log.d("AAA", "Set background $background")
+
+        if (currentMainBackground == 0) {
+            currentMainBackground = background
+            binding.mainLayout.setBackgroundResource(background)
+            (binding.mainLayout.background as AnimationDrawable).apply {
+                setEnterFadeDuration(5000)
+                setExitFadeDuration(5000)
+                start()
+            }
+            return
+        }
+
+        // Animate transition to new AnimatedDrawable background
+        currentMainBackground = background
+        val d = getDrawable(background) as AnimationDrawable
+        val TRANSITION_DURATION_MS = 800
+        (binding.mainLayout.background as AnimationDrawable).apply {
+            setEnterFadeDuration(TRANSITION_DURATION_MS)
+            setExitFadeDuration(TRANSITION_DURATION_MS)
+            addFrame(d.getFrame(0), 50000)
+            selectDrawable(numberOfFrames - 1)
+        }
+        Timer().schedule(object : TimerTask() {
+            val expectedBackground = background
+
+            override fun run() {
+                if (expectedBackground != currentMainBackground)
+                    return
+                binding.mainLayout.setBackgroundResource(currentMainBackground)
+                (binding.mainLayout.background as AnimationDrawable).apply {
+                    setEnterFadeDuration(5000)
+                    setExitFadeDuration(5000)
+                    start()
+                }
+            }
+        }, TRANSITION_DURATION_MS.toLong())
+    }
+
     override fun onResume() {
         super.onResume()
         Log.d(tag, "onResume")
+
+        val oldState = appListModel.storeAppItem.state
+
         networkChangeListener.register()
         if (isNetworkAvailable()) {
             networkChangeListener.onNetworkAvailable()
         } else {
             networkChangeListener.onNetworkUnavailable()
+        }
+
+        when (appListModel.storeAppItem.state) {
+            INSTALLED -> {
+                if (oldState != INSTALLED)
+                    setMainBackground(R.drawable.gradient_list_1)
+                else
+                    setMainBackground(R.drawable.gradient_list_1)
+            }
+            INSTALLED_AND_OUTDATED, NOT_INSTALLED -> {
+                setMainBackground(R.drawable.gradient_list_2)
+            }
+            DOWNLOADING -> {}
         }
     }
 
