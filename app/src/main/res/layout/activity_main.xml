@@ -5,7 +5,7 @@
     android:layout_width="match_parent"
     android:id="@+id/mainLayout"
     android:layout_height="match_parent"
-    android:background="@drawable/gradient_list_2"
+    android:background="@drawable/gradient_list_1"
     tools:context=".MainActivity">
 
     <Button
