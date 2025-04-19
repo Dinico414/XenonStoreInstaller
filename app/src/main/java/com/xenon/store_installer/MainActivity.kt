@@ -83,6 +83,14 @@ class MainActivity : AppCompatActivity() {
                 }
             }
 
+        // Request install permission on create (consider if this is the best UX)
+        if (!checkInstallPermission()) {
+            val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
+                data = Uri.parse("package:$packageName")
+            }
+            installPermissionLauncher.launch(intent)
+        }
+
         appListModel = ViewModelProvider(this)[AppListViewModel::class.java]
         appListModel.appItemUpdated.observe(this) { appItem ->
             when (appItem.state) {
