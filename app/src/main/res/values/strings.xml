@@ -8,4 +8,8 @@
     <string name="response_error_code">Download failed: HTTP error %1$s</string>
     <string name="empty_body">Download failed: Empty response</string>
     <string name="download_failed">Download failed</string>
+    <string name="no_assets">No assets found for</string>
+    <string name="no_data">No Data for</string>
+    <string name="offline_message">You are offline at the moment</string>
+    <string name="open_settings">Open Settings</string>
 </resources>
