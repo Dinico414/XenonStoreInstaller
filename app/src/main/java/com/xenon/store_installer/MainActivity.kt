@@ -1,5 +1,6 @@
 package com.xenon.store_installer
 
+import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -18,6 +19,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.FileProvider
 import androidx.core.content.res.ResourcesCompat
+import androidx.core.net.toUri
 import androidx.lifecycle.ViewModelProvider
 import com.google.android.material.snackbar.Snackbar
 import com.xenon.commons.accesspoint.R.color
@@ -27,7 +29,6 @@ import com.xenon.store_installer.AppEntryState.INSTALLED
 import com.xenon.store_installer.AppEntryState.INSTALLED_AND_OUTDATED
 import com.xenon.store_installer.AppEntryState.NOT_INSTALLED
 import com.xenon.store_installer.databinding.ActivityMainBinding
-import androidx.core.net.toUri
 import com.xenon.store_installer.viewmodel.AppListViewModel
 import okhttp3.Cache
 import okhttp3.Call
@@ -41,13 +42,12 @@ import org.json.JSONObject
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
-import java.util.concurrent.atomic.AtomicBoolean
 
-@Suppress("DEPRECATION")
+@Suppress("DEPRECATION", "SameParameterValue")
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private lateinit var appListModel: AppListViewModel
-    private val TAG = MainActivity::class.qualifiedName
+    private val tag = MainActivity::class.qualifiedName
     private var activeSnackbar: Snackbar? = null
     private lateinit var networkChangeListener: NetworkChangeListener
 
@@ -68,7 +68,7 @@ class MainActivity : AppCompatActivity() {
             .eventListener(object : EventListener() {
                 override fun cacheHit(call: Call, response: Response) {
                     super.cacheHit(call, response)
-                    Log.d(TAG, "CACHE HIT ${response.request.url}")
+                    Log.d(tag, "CACHE HIT ${response.request.url}")
                 }
             })
             .build()
@@ -109,13 +109,13 @@ class MainActivity : AppCompatActivity() {
         networkChangeListener = NetworkChangeListener(
             baseContext,
             onNetworkAvailable = {
-                Log.d(TAG, "Network connected")
+                Log.d(tag, "Network connected")
                 activeSnackbar?.dismiss()
                 activeSnackbar = null
                 refreshAppItem(appListModel.storeAppItem)
             },
             onNetworkUnavailable = {
-                Log.d(TAG, "Network disconnected")
+                Log.d(tag, "Network disconnected")
                 showNoInternetSnackbar()
             }
         )
@@ -126,9 +126,10 @@ class MainActivity : AppCompatActivity() {
                     downloadAppItem(appListModel.storeAppItem)
                 }
                 INSTALLED -> {
-                    uninstallPackage(appListModel.storeAppItem.packageName)
+                    // Call uninstallPackages to handle both packages
+                    uninstallPackages()
                 }
-                AppEntryState.DOWNLOADING -> {}
+                DOWNLOADING -> {}
             }
         }
 
@@ -142,10 +143,9 @@ class MainActivity : AppCompatActivity() {
 
         refreshAppItem(appListModel.storeAppItem)
     }
-
     override fun onResume() {
         super.onResume()
-        Log.d(TAG, "onResume")
+        Log.d(tag, "onResume")
         networkChangeListener.register()
         if (isNetworkAvailable()) {
             networkChangeListener.onNetworkAvailable()
@@ -161,7 +161,7 @@ class MainActivity : AppCompatActivity() {
 
     private fun isNetworkAvailable(): Boolean {
         val connectivityManager = baseContext.getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager?
-        if (connectivityManager == null) return false
+            ?: return false
 
         val network = connectivityManager.activeNetwork
         val capabilities = connectivityManager.getNetworkCapabilities(network)
@@ -248,14 +248,14 @@ class MainActivity : AppCompatActivity() {
 
         appItem.installedVersion = getInstalledAppVersion(appItem.packageName) ?: ""
 
-        if (appItem.state == AppEntryState.DOWNLOADING) {
+        if (appItem.state == DOWNLOADING) {
 //            downloadAppItem(appItem)
         } else if (appItem.isOutdated()) {
-            appItem.state = AppEntryState.INSTALLED_AND_OUTDATED
+            appItem.state = INSTALLED_AND_OUTDATED
         } else if (appItem.installedVersion != "") {
-            appItem.state = AppEntryState.INSTALLED
+            appItem.state = INSTALLED
         } else {
-            appItem.state = AppEntryState.NOT_INSTALLED
+            appItem.state = NOT_INSTALLED
         }
         appListModel.appItemUpdated.postValue(appItem)
 
@@ -268,8 +268,8 @@ class MainActivity : AppCompatActivity() {
                         appItem.downloadUrl = downloadUrl
                         if (appItem.isNewerVersion(version)) {
                             appItem.newVersion = version
-                            if (appItem.state == AppEntryState.INSTALLED) {
-                                appItem.state = AppEntryState.INSTALLED_AND_OUTDATED
+                            if (appItem.state == INSTALLED) {
+                                appItem.state = INSTALLED_AND_OUTDATED
                                 appListModel.appItemUpdated.postValue(appItem)
                             }
                         }
@@ -282,7 +282,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    fun downloadAppItem(appItem: AppItem) {
+    private fun downloadAppItem(appItem: AppItem) {
         if (appItem.downloadUrl.isEmpty()) {
             showSnackbar(getString(R.string.failed_to_find))
             return
@@ -299,16 +299,16 @@ class MainActivity : AppCompatActivity() {
                     appListModel.appItemUpdated.postValue(appItem)
                 }
 
-                override fun onCompleted(tempFile: File) {
-                    Log.d(TAG, "Completed download: $tempFile")
-                    appListModel.downloadedApkQueue.add(tempFile)
-                    appListModel.downloadedApkFile.postValue(tempFile)
+                override fun onCompleted(result: File) {
+                    Log.d(tag, "Completed download: $result")
+                    appListModel.downloadedApkQueue.add(result)
+                    appListModel.downloadedApkFile.postValue(result)
                     appItem.state = NOT_INSTALLED
                     refreshAppItem(appItem)
                 }
 
                 override fun onFailure(error: String) {
-                    appItem.state = AppEntryState.NOT_INSTALLED
+                    appItem.state = NOT_INSTALLED
                     refreshAppItem(appItem)
                     showErrorSnackbar(getString(R.string.download_failed))
                 }
@@ -322,7 +322,7 @@ class MainActivity : AppCompatActivity() {
         useCache: Boolean = true,
         synchronous: Boolean = false,
     ) {
-        Log.d(TAG, "downloadToString(url=$url, useCache=$useCache)")
+        Log.d(tag, "downloadToString(url=$url, useCache=$useCache)")
         val request = Request.Builder()
             .url(url)
             .build()
@@ -365,7 +365,7 @@ class MainActivity : AppCompatActivity() {
         useCache: Boolean = true,
         synchronous: Boolean = false,
     ) {
-        Log.d(TAG, "downloadToFile(url=$url, useCache=$useCache)")
+        Log.d(tag, "downloadToFile(url=$url, useCache=$useCache)")
         val request = Request.Builder()
             .url(url)
             .build()
@@ -433,9 +433,16 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun uninstallPackage(packageName: String) {
+    private fun uninstallPackages() {
+        // Uninstall com.xenon.store_installer first (if installed)
+        if (isAppInstalled("com.xenon.store_installer")) {
+            "com.xenon.store_installer".uninstallPackage()
+        }
+    }
+
+    private fun String.uninstallPackage() {
         val intent = Intent(Intent.ACTION_UNINSTALL_PACKAGE).apply {
-            data = "package:$packageName".toUri()
+            data = "package:${this@uninstallPackage}".toUri()
         }
         startActivity(intent)
     }
@@ -527,6 +534,7 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    @SuppressLint("UseCompatLoadingForDrawables")
     private fun showSnackbar(message: String) {
         runOnUiThread {
             val snackbar = Snackbar.make(binding.root, message, Snackbar.LENGTH_SHORT)
