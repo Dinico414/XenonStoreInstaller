@@ -5,15 +5,12 @@ import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.drawable.AnimationDrawable
-import android.graphics.drawable.Drawable
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.net.NetworkRequest
 import android.net.Uri
 import android.os.Bundle
-import android.os.Handler
-import android.os.SystemClock
 import android.provider.Settings
 import android.util.Log
 import android.view.View
@@ -35,7 +32,6 @@ import com.xenon.store_installer.AppEntryState.INSTALLED_AND_OUTDATED
 import com.xenon.store_installer.AppEntryState.NOT_INSTALLED
 import com.xenon.store_installer.databinding.ActivityMainBinding
 import com.xenon.store_installer.viewmodel.AppListViewModel
-import kotlinx.coroutines.Runnable
 import okhttp3.Cache
 import okhttp3.Call
 import okhttp3.Callback
@@ -115,13 +111,13 @@ class MainActivity : AppCompatActivity() {
                     binding.progressBar.visibility = View.VISIBLE
                     binding.progressBar.progress = appItem.bytesDownloaded.toInt()
                     binding.progressBar.max = appItem.fileSize.toInt()
-                    setMainBackground(R.drawable.gradient_list_1)
+                    setMainBackground(R.drawable.gradient_list_2)
                 }
 
                 INSTALLED -> {
                     binding.downloadButton.text = getString(R.string.uninstall)
                     binding.progressBar.visibility = View.GONE
-                    setMainBackground(R.drawable.gradient_list_1)
+                    setMainBackground(R.drawable.gradient_list_2)
                 }
 
                 NOT_INSTALLED, INSTALLED_AND_OUTDATED -> {
@@ -229,12 +225,15 @@ class MainActivity : AppCompatActivity() {
         when (appListModel.storeAppItem.state) {
             INSTALLED -> {
                 if (oldState != INSTALLED)
-                    setMainBackground(R.drawable.gradient_list_1)
+                    setMainBackground(R.drawable.gradient_list_2)
                 else
-                    setMainBackground(R.drawable.gradient_list_1)
+                    setMainBackground(R.drawable.gradient_list_2)
             }
-            INSTALLED_AND_OUTDATED, NOT_INSTALLED -> {
+            INSTALLED_AND_OUTDATED -> {
                 setMainBackground(R.drawable.gradient_list_2)
+            }
+            NOT_INSTALLED -> {
+                setMainBackground(R.drawable.gradient_list_1)
             }
             DOWNLOADING -> {}
         }
