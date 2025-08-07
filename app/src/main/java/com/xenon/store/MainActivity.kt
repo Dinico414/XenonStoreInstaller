@@ -1,4 +1,4 @@
-package com.xenon.store_installer
+package com.xenon.store
 
 import android.annotation.SuppressLint
 import android.content.Context
@@ -26,12 +26,12 @@ import androidx.lifecycle.ViewModelProvider
 import com.google.android.material.snackbar.Snackbar
 import com.xenon.commons.accesspoint.R.color
 import com.xenon.commons.accesspoint.R.drawable
-import com.xenon.store_installer.AppEntryState.DOWNLOADING
-import com.xenon.store_installer.AppEntryState.INSTALLED
-import com.xenon.store_installer.AppEntryState.INSTALLED_AND_OUTDATED
-import com.xenon.store_installer.AppEntryState.NOT_INSTALLED
-import com.xenon.store_installer.databinding.ActivityMainBinding
-import com.xenon.store_installer.viewmodel.AppListViewModel
+import com.xenon.store.AppEntryState.DOWNLOADING
+import com.xenon.store.AppEntryState.INSTALLED
+import com.xenon.store.AppEntryState.INSTALLED_AND_OUTDATED
+import com.xenon.store.AppEntryState.NOT_INSTALLED
+import com.xenon.store.databinding.ActivityMainBinding
+import com.xenon.store.viewmodel.AppListViewModel
 import okhttp3.Cache
 import okhttp3.Call
 import okhttp3.Callback
@@ -176,7 +176,7 @@ class MainActivity : AppCompatActivity() {
             currentMainBackground = background
             binding.mainLayout.setBackgroundResource(background)
             (binding.mainLayout.background as AnimationDrawable).apply {
-                setEnterFadeDuration(5000)
+                setEnterFadeDuration(2500)
                 setExitFadeDuration(5000)
                 start()
             }
@@ -201,7 +201,7 @@ class MainActivity : AppCompatActivity() {
                     return
                 binding.mainLayout.setBackgroundResource(currentMainBackground)
                 (binding.mainLayout.background as AnimationDrawable).apply {
-                    setEnterFadeDuration(5000)
+                    setEnterFadeDuration(2500)
                     setExitFadeDuration(5000)
                     start()
                 }
@@ -224,10 +224,10 @@ class MainActivity : AppCompatActivity() {
 
         when (appListModel.storeAppItem.state) {
             INSTALLED -> {
-                if (oldState != INSTALLED)
+//                if (oldState != INSTALLED)
                     setMainBackground(R.drawable.gradient_list_2)
-                else
-                    setMainBackground(R.drawable.gradient_list_2)
+//                else
+//                    setMainBackground(R.drawable.gradient_list_2)
             }
             INSTALLED_AND_OUTDATED -> {
                 setMainBackground(R.drawable.gradient_list_2)
@@ -235,7 +235,10 @@ class MainActivity : AppCompatActivity() {
             NOT_INSTALLED -> {
                 setMainBackground(R.drawable.gradient_list_1)
             }
-            DOWNLOADING -> {}
+            DOWNLOADING -> {
+                setMainBackground(R.drawable.gradient_list_1)
+
+            }
         }
     }
 

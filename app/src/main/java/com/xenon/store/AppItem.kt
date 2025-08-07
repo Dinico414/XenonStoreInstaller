@@ -1,4 +1,4 @@
-package com.xenon.store_installer
+package com.xenon.store
 
 enum class AppEntryState {
     NOT_INSTALLED,

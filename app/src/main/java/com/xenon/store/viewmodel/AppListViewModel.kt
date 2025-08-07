@@ -1,9 +1,8 @@
-package com.xenon.store_installer.viewmodel
+package com.xenon.store.viewmodel
 
 import androidx.lifecycle.MutableLiveData
 import androidx.lifecycle.ViewModel
-import com.xenon.store_installer.AppEntryState
-import com.xenon.store_installer.AppItem
+import com.xenon.store.AppItem
 import java.io.File
 import java.util.concurrent.ConcurrentLinkedQueue
 

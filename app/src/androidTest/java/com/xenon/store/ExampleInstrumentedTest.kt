@@ -1,4 +1,4 @@
-package com.xenon.store_installer
+package com.xenon.store
 
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.ext.junit.runners.AndroidJUnit4

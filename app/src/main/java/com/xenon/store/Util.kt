@@ -1,7 +1,6 @@
-package com.xenon.store_installer
+package com.xenon.store
 
 import android.content.res.Resources
-import android.os.Build
 import kotlin.collections.getOrElse
 import kotlin.collections.map
 import kotlin.ranges.until

@@ -4,14 +4,14 @@ plugins {
 }
 
 android {
-    namespace = "com.xenon.store_installer"
+    namespace = "com.xenon.store"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.xenon.store_installer"
+        applicationId = "com.xenon.store"
         minSdk = 28
         targetSdk = 35
-        versionCode = 1
+        versionCode = 2
         versionName = "installer"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
