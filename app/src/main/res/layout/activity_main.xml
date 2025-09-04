@@ -17,35 +17,49 @@
         android:textAlignment="center"
         android:textColor="#FFFFFFFF"
         android:textSize="48sp"
-        app:layout_constraintBottom_toTopOf="@id/downloadButton"
+        app:layout_constraintBottom_toTopOf="@id/frame_action"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toTopOf="parent" />
 
-    <Button
-        android:id="@+id/downloadButton"
-        android:layout_width="wrap_content"
+    <FrameLayout
+        android:id="@+id/frame_action"
+        android:layout_width="0dp"
         android:layout_height="wrap_content"
-        android:backgroundTint="#80808080"
-        android:text="Download Xenon Store"
-        android:fontFamily="@font/quicksand_light"
-        android:textSize="32sp"
-        android:paddingHorizontal="30dp"
-        android:paddingVertical="20dp"
+        android:animateLayoutChanges="true"
+        android:visibility="visible"
+        android:layout_marginHorizontal="40dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/welcomeText" />
+        app:layout_constraintTop_toBottomOf="@id/welcomeText"
+        tools:visibility="visible">
 
-    <ProgressBar
-        android:id="@+id/progressBar"
-        style="?android:attr/progressBarStyleHorizontal"
-        android:layout_width="0dp"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:visibility="invisible"
-        app:layout_constraintEnd_toEndOf="parent"
-        app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@id/downloadButton" />
+        <Button
+            android:id="@+id/downloadButton"
+            android:layout_width="match_parent"
+            android:layout_height="96dp"
+            android:lines="1"
+            android:backgroundTint="@color/surfaceBright"
+            android:textColor="@color/onSurface"
+            android:fontFamily="@font/quicksand_light"
+            android:text="Download Xenon Store"
+            android:textSize="32sp"
+            />
+
+        <com.google.android.material.progressindicator.LinearProgressIndicator
+            android:id="@+id/progressBar"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            app:indicatorColor="@color/primary"
+            app:trackThickness="64dp"
+            app:trackCornerRadius="37dp"
+            app:trackStopIndicatorSize="0dp"
+            app:trackColor="@color/transparent"
+            android:layout_marginHorizontal="16dp"
+            android:layout_marginTop="16dp"
+            android:visibility="invisible"/>
+
+    </FrameLayout>
 
 </androidx.constraintlayout.widget.ConstraintLayout>

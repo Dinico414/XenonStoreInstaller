@@ -4,6 +4,7 @@ import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.graphics.Color
 import android.graphics.drawable.AnimationDrawable
 import android.net.ConnectivityManager
 import android.net.Network
@@ -14,6 +15,7 @@ import android.os.Bundle
 import android.provider.Settings
 import android.util.Log
 import android.view.View
+import android.widget.FrameLayout
 import android.widget.Toast
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
@@ -22,10 +24,12 @@ import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.FileProvider
 import androidx.core.content.res.ResourcesCompat
 import androidx.core.net.toUri
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
+import androidx.core.view.updatePadding
 import androidx.lifecycle.ViewModelProvider
-import com.google.android.material.snackbar.Snackbar
-import com.xenon.commons.accesspoint.R.color
-import com.xenon.commons.accesspoint.R.drawable
 import com.xenon.store.AppEntryState.DOWNLOADING
 import com.xenon.store.AppEntryState.INSTALLED
 import com.xenon.store.AppEntryState.INSTALLED_AND_OUTDATED
@@ -47,22 +51,57 @@ import java.io.IOException
 import java.util.Timer
 import java.util.TimerTask
 
-@Suppress("DEPRECATION", "SameParameterValue")
+@Suppress("DEPRECATION", "SameParameterValue", "UNNECESSARY_SAFE_CALL")
 class MainActivity : AppCompatActivity() {
     private lateinit var binding: ActivityMainBinding
     private lateinit var appListModel: AppListViewModel
     private val tag = MainActivity::class.qualifiedName
-    private var activeSnackbar: Snackbar? = null
     private lateinit var networkChangeListener: NetworkChangeListener
 
     private lateinit var client: OkHttpClient
 
     private lateinit var installPermissionLauncher: ActivityResultLauncher<Intent>
 
+    @SuppressLint("UseKtx")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+
+        // Configure window for edge-to-edge display BEFORE layout inflation
+        WindowCompat.setDecorFitsSystemWindows(window, false)
+        window.statusBarColor = Color.TRANSPARENT
+        window.navigationBarColor = Color.TRANSPARENT
+
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
+
+        // Control system bar appearance
+        val controller = WindowInsetsControllerCompat(window, binding.root)
+        controller.isAppearanceLightStatusBars = false // false for light icons on dark background
+        controller.isAppearanceLightNavigationBars = false // false for light icons on dark background
+
+        ViewCompat.setOnApplyWindowInsetsListener(binding.welcomeText) { view, windowInsets ->
+            val insets = windowInsets.getInsets(WindowInsetsCompat.Type.statusBars()) // Only top inset for status bar
+            view.updatePadding(top = insets.top) // Use updatePadding to preserve existing padding
+            windowInsets // Return the original insets if others might need them, or CONSUMED
+        }
+
+        ViewCompat.setOnApplyWindowInsetsListener(binding.downloadButton) { view, windowInsets ->
+            val insets = windowInsets.getInsets(WindowInsetsCompat.Type.navigationBars()) // Only bottom inset for navigation bar
+
+            // Get FrameLayout.LayoutParams as the parent is a FrameLayout
+            val params = view.layoutParams as FrameLayout.LayoutParams // Corrected cast
+
+            params.bottomMargin = insets.bottom + (32 * resources.displayMetrics.density).toInt() // Add original margin + inset
+            view.layoutParams = params // Re-apply the modified params
+
+            windowInsets
+        }
+
+        val typefaceBold = ResourcesCompat.getFont(this, R.font.quicksand_bold)
+        binding.welcomeText.typeface = typefaceBold
+
+        val typefaceLight = ResourcesCompat.getFont(this, R.font.quicksand_light)
+        binding.downloadButton.typeface = typefaceLight
 
         val constraintLayout: ConstraintLayout = findViewById(R.id.mainLayout)
         val animationDrawable = constraintLayout.background as? AnimationDrawable
@@ -131,13 +170,10 @@ class MainActivity : AppCompatActivity() {
             baseContext,
             onNetworkAvailable = {
                 Log.d(tag, "Network connected")
-                activeSnackbar?.dismiss()
-                activeSnackbar = null
                 refreshAppItem(appListModel.storeAppItem)
             },
             onNetworkUnavailable = {
                 Log.d(tag, "Network disconnected")
-                showNoInternetSnackbar()
             }
         )
 
@@ -147,8 +183,8 @@ class MainActivity : AppCompatActivity() {
                     downloadAppItem(appListModel.storeAppItem)
                 }
                 INSTALLED -> {
-                    // Call uninstallPackages to handle both packages
                     uninstallPackages()
+
                 }
                 DOWNLOADING -> {}
             }
@@ -167,6 +203,7 @@ class MainActivity : AppCompatActivity() {
 
     private var currentMainBackground: Int = 0
 
+    @SuppressLint("UseCompatLoadingForDrawables")
     private fun setMainBackground(background: Int, reset: Boolean = false) {
         if (background == currentMainBackground && !reset) return
 
@@ -186,10 +223,10 @@ class MainActivity : AppCompatActivity() {
         // Animate transition to new AnimatedDrawable background
         currentMainBackground = background
         val d = getDrawable(background) as AnimationDrawable
-        val TRANSITION_DURATION_MS = 800
+        val transitionDurationMs = 800
         (binding.mainLayout.background as AnimationDrawable).apply {
-            setEnterFadeDuration(TRANSITION_DURATION_MS)
-            setExitFadeDuration(TRANSITION_DURATION_MS)
+            setEnterFadeDuration(transitionDurationMs)
+            setExitFadeDuration(transitionDurationMs)
             addFrame(d.getFrame(0), 50000)
             selectDrawable(numberOfFrames - 1)
         }
@@ -206,14 +243,12 @@ class MainActivity : AppCompatActivity() {
                     start()
                 }
             }
-        }, TRANSITION_DURATION_MS.toLong())
+        }, transitionDurationMs.toLong())
     }
 
     override fun onResume() {
         super.onResume()
         Log.d(tag, "onResume")
-
-        val oldState = appListModel.storeAppItem.state
 
         networkChangeListener.register()
         if (isNetworkAvailable()) {
@@ -224,10 +259,7 @@ class MainActivity : AppCompatActivity() {
 
         when (appListModel.storeAppItem.state) {
             INSTALLED -> {
-//                if (oldState != INSTALLED)
-                    setMainBackground(R.drawable.gradient_list_2)
-//                else
-//                    setMainBackground(R.drawable.gradient_list_2)
+                setMainBackground(R.drawable.gradient_list_2)
             }
             INSTALLED_AND_OUTDATED -> {
                 setMainBackground(R.drawable.gradient_list_2)
@@ -237,7 +269,6 @@ class MainActivity : AppCompatActivity() {
             }
             DOWNLOADING -> {
                 setMainBackground(R.drawable.gradient_list_1)
-
             }
         }
     }
@@ -314,7 +345,7 @@ class MainActivity : AppCompatActivity() {
         return try {
             val packageInfo = packageManager.getPackageInfo(packageName, 0)
             packageInfo?.versionName
-        } catch (e: PackageManager.NameNotFoundException) {
+        } catch (_: PackageManager.NameNotFoundException) {
             null
         }
     }
@@ -364,7 +395,6 @@ class MainActivity : AppCompatActivity() {
                     }
 
                     override fun onFailure(error: String) {
-                        showErrorSnackbar("$error ${appItem.repo}")
                     }
                 })
         }
@@ -372,7 +402,6 @@ class MainActivity : AppCompatActivity() {
 
     private fun downloadAppItem(appItem: AppItem) {
         if (appItem.downloadUrl.isEmpty()) {
-            showSnackbar(getString(R.string.failed_to_find))
             return
         }
         appListModel.storeAppItem.state = DOWNLOADING
@@ -398,7 +427,6 @@ class MainActivity : AppCompatActivity() {
                 override fun onFailure(error: String) {
                     appItem.state = NOT_INSTALLED
                     refreshAppItem(appItem)
-                    showErrorSnackbar(getString(R.string.download_failed))
                 }
             },
             useCache = false)
@@ -480,7 +508,7 @@ class MainActivity : AppCompatActivity() {
                             progressListener.onProgress(downloadedBytes, contentLength)
                         }
                         progressListener.onCompleted(tempFile)
-                    } catch (e: Exception) {
+                    } catch (_: Exception) {
                         progressListener.onFailure(getString(R.string.download_failed))
                     } finally {
                         inputStream?.close()
@@ -554,42 +582,6 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun showNoInternetSnackbar() {
-        runOnUiThread {
-            val snackbar = Snackbar.make(
-                binding.root,
-                getString(R.string.offline_message),
-                Snackbar.LENGTH_INDEFINITE
-            )
-            val backgroundDrawable =
-                ResourcesCompat.getDrawable(resources, drawable.tile_popup, null)
-
-            snackbar.view.background = backgroundDrawable
-            snackbar.setTextColor(resources.getColor(color.inverseOnSurface, null))
-            snackbar.setBackgroundTint(resources.getColor(color.inverseSurface, null))
-            snackbar.setAction(getString(R.string.open_settings)) {
-                val intent = Intent(Settings.ACTION_WIRELESS_SETTINGS)
-                startActivity(intent)
-            }
-            activeSnackbar = snackbar
-            snackbar.show()
-        }
-    }
-
-    private fun showErrorSnackbar(message: String) {
-        runOnUiThread {
-            val snackbar = Snackbar.make(binding.root, message, Snackbar.LENGTH_SHORT)
-            val backgroundDrawable =
-                ResourcesCompat.getDrawable(resources, drawable.tile_popup, null)
-
-            snackbar.view.background = backgroundDrawable
-            snackbar.setTextColor(resources.getColor(color.onError, null))
-            snackbar.setBackgroundTint(resources.getColor(color.error, null))
-            activeSnackbar = snackbar
-            snackbar.show()
-        }
-    }
-
     inner class NetworkChangeListener(
         private val context: Context,
         val onNetworkAvailable: () -> Unit,
@@ -608,7 +600,7 @@ class MainActivity : AppCompatActivity() {
 
         fun register() {
             val connectivityManager =
-                context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+                context.getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
             val networkRequest = NetworkRequest.Builder()
                 .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
                 .build()
@@ -617,21 +609,8 @@ class MainActivity : AppCompatActivity() {
 
         fun unregister() {
             val connectivityManager =
-                context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+                context.getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
             connectivityManager.unregisterNetworkCallback(this)
-        }
-    }
-
-    @SuppressLint("UseCompatLoadingForDrawables")
-    private fun showSnackbar(message: String) {
-        runOnUiThread {
-            val snackbar = Snackbar.make(binding.root, message, Snackbar.LENGTH_SHORT)
-            val backgroundDrawable = resources.getDrawable(drawable.tile_popup, null)
-
-            snackbar.view.background = backgroundDrawable
-            snackbar.setTextColor(resources.getColor(color.onError, null))
-            snackbar.setBackgroundTint(resources.getColor(color.error, null))
-            snackbar.show()
         }
     }
 }
