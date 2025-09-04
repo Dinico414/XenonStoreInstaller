@@ -5,14 +5,14 @@ plugins {
 
 android {
     namespace = "com.xenon.store"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         applicationId = "com.xenon.store"
         minSdk = 28
         targetSdk = 35
-        versionCode = 3
-        versionName = "1.0"
+        versionCode = 1
+        versionName = "0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
