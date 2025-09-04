@@ -3,8 +3,6 @@ package com.xenon.store
 enum class AppEntryState {
     NOT_INSTALLED,
     DOWNLOADING,
-    INSTALLED,
-    INSTALLED_AND_OUTDATED,
 }
 
 data class AppItem(

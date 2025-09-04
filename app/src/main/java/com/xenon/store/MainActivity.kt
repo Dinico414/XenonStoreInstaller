@@ -1,9 +1,9 @@
 package com.xenon.store
 
+// import androidx.core.net.toUri // No longer needed
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
-import android.content.pm.PackageManager
 import android.graphics.Color
 import android.graphics.drawable.AnimationDrawable
 import android.net.ConnectivityManager
@@ -23,7 +23,6 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.core.content.FileProvider
 import androidx.core.content.res.ResourcesCompat
-import androidx.core.net.toUri
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
@@ -31,8 +30,6 @@ import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.view.updatePadding
 import androidx.lifecycle.ViewModelProvider
 import com.xenon.store.AppEntryState.DOWNLOADING
-import com.xenon.store.AppEntryState.INSTALLED
-import com.xenon.store.AppEntryState.INSTALLED_AND_OUTDATED
 import com.xenon.store.AppEntryState.NOT_INSTALLED
 import com.xenon.store.databinding.ActivityMainBinding
 import com.xenon.store.viewmodel.AppListViewModel
@@ -66,7 +63,6 @@ class MainActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // Configure window for edge-to-edge display BEFORE layout inflation
         WindowCompat.setDecorFitsSystemWindows(window, false)
         window.statusBarColor = Color.TRANSPARENT
         window.navigationBarColor = Color.TRANSPARENT
@@ -74,26 +70,21 @@ class MainActivity : AppCompatActivity() {
         binding = ActivityMainBinding.inflate(layoutInflater)
         setContentView(binding.root)
 
-        // Control system bar appearance
         val controller = WindowInsetsControllerCompat(window, binding.root)
-        controller.isAppearanceLightStatusBars = false // false for light icons on dark background
-        controller.isAppearanceLightNavigationBars = false // false for light icons on dark background
+        controller.isAppearanceLightStatusBars = false
+        controller.isAppearanceLightNavigationBars = false
 
         ViewCompat.setOnApplyWindowInsetsListener(binding.welcomeText) { view, windowInsets ->
-            val insets = windowInsets.getInsets(WindowInsetsCompat.Type.statusBars()) // Only top inset for status bar
-            view.updatePadding(top = insets.top) // Use updatePadding to preserve existing padding
-            windowInsets // Return the original insets if others might need them, or CONSUMED
+            val insets = windowInsets.getInsets(WindowInsetsCompat.Type.statusBars())
+            view.updatePadding(top = insets.top)
+            windowInsets
         }
 
         ViewCompat.setOnApplyWindowInsetsListener(binding.downloadButton) { view, windowInsets ->
-            val insets = windowInsets.getInsets(WindowInsetsCompat.Type.navigationBars()) // Only bottom inset for navigation bar
-
-            // Get FrameLayout.LayoutParams as the parent is a FrameLayout
-            val params = view.layoutParams as FrameLayout.LayoutParams // Corrected cast
-
-            params.bottomMargin = insets.bottom + (32 * resources.displayMetrics.density).toInt() // Add original margin + inset
-            view.layoutParams = params // Re-apply the modified params
-
+            val insets = windowInsets.getInsets(WindowInsetsCompat.Type.navigationBars())
+            val params = view.layoutParams as FrameLayout.LayoutParams
+            params.bottomMargin = insets.bottom + (32 * resources.displayMetrics.density).toInt()
+            view.layoutParams = params
             windowInsets
         }
 
@@ -129,12 +120,16 @@ class MainActivity : AppCompatActivity() {
             { _ ->
                 if (checkInstallPermission()) {
                     showToast(getString(R.string.permission_granted))
+                    // Potentially re-trigger download/install if an APK was pending
+                    val pendingApk = appListModel.downloadedApkQueue.peek()
+                    if (pendingApk != null) {
+                         installApk(pendingApk)
+                    }
                 } else {
                     showToast(getString(R.string.permission_denied))
                 }
             }
 
-        // Request install permission on create (consider if this is the best UX)
         if (!checkInstallPermission()) {
             val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
                 data = Uri.parse("package:$packageName")
@@ -150,18 +145,12 @@ class MainActivity : AppCompatActivity() {
                     binding.progressBar.visibility = View.VISIBLE
                     binding.progressBar.progress = appItem.bytesDownloaded.toInt()
                     binding.progressBar.max = appItem.fileSize.toInt()
-                    setMainBackground(R.drawable.gradient_list_2)
+                    setMainBackground(R.drawable.gradient_list_2) // Downloading/Progress gradient
                 }
-
-                INSTALLED -> {
-                    binding.downloadButton.text = getString(R.string.uninstall)
-                    binding.progressBar.visibility = View.GONE
-                    setMainBackground(R.drawable.gradient_list_2)
-                }
-
-                NOT_INSTALLED, INSTALLED_AND_OUTDATED -> {
+                NOT_INSTALLED -> {
                     binding.downloadButton.text = getString(R.string.install)
                     binding.progressBar.visibility = View.GONE
+                    setMainBackground(R.drawable.gradient_list_1) // Initial/Ready to install gradient
                 }
             }
         }
@@ -174,30 +163,34 @@ class MainActivity : AppCompatActivity() {
             },
             onNetworkUnavailable = {
                 Log.d(tag, "Network disconnected")
+                // Optionally update UI to indicate no network
+                 appListModel.storeAppItem.state = NOT_INSTALLED // Reset state
+                 appListModel.appItemUpdated.postValue(appListModel.storeAppItem)
             }
         )
 
         binding.downloadButton.setOnClickListener {
-            when (appListModel.storeAppItem.state) {
-                NOT_INSTALLED, INSTALLED_AND_OUTDATED -> {
-                    downloadAppItem(appListModel.storeAppItem)
-                }
-                INSTALLED -> {
-                    uninstallPackages()
-
-                }
-                DOWNLOADING -> {}
+            if (appListModel.storeAppItem.state == NOT_INSTALLED && appListModel.storeAppItem.downloadUrl.isNotEmpty()) {
+                downloadAppItem(appListModel.storeAppItem)
+            } else if (appListModel.storeAppItem.state == DOWNLOADING) {
+                // Optionally allow cancelling download, for now, do nothing
+            } else if (!isNetworkAvailable()){
+            } else {
+                 // Potentially refresh if URL is empty and state is NOT_INSTALLED
+                 refreshAppItem(appListModel.storeAppItem, useCache = false)
             }
         }
 
-        appListModel.downloadedApkFile.observe(this) { _ ->
-            appListModel.downloadedApkFile.postValue(null)
-            while (true) {
-                val apkFile = appListModel.downloadedApkQueue.poll() ?: break
-                installApk(apkFile)
+        appListModel.downloadedApkFile.observe(this) { apkFile ->
+            // Using a single value LiveData, consume it here
+            apkFile?.let {
+                installApk(it)
+                appListModel.downloadedApkFile.postValue(null) // Consume the event
+                 // Clear the queue as we are processing the latest one
+                appListModel.downloadedApkQueue.clear()
             }
         }
-
+        // Initial refresh
         refreshAppItem(appListModel.storeAppItem)
     }
 
@@ -206,13 +199,12 @@ class MainActivity : AppCompatActivity() {
     @SuppressLint("UseCompatLoadingForDrawables")
     private fun setMainBackground(background: Int, reset: Boolean = false) {
         if (background == currentMainBackground && !reset) return
-
         Log.d("AAA", "Set background $background")
 
         if (currentMainBackground == 0) {
             currentMainBackground = background
             binding.mainLayout.setBackgroundResource(background)
-            (binding.mainLayout.background as AnimationDrawable).apply {
+            (binding.mainLayout.background as? AnimationDrawable)?.apply {
                 setEnterFadeDuration(2500)
                 setExitFadeDuration(5000)
                 start()
@@ -220,27 +212,32 @@ class MainActivity : AppCompatActivity() {
             return
         }
 
-        // Animate transition to new AnimatedDrawable background
         currentMainBackground = background
-        val d = getDrawable(background) as AnimationDrawable
+        val d = getDrawable(background) as? AnimationDrawable
+        if (d == null) { // Fallback if the background is not an animation drawable
+            binding.mainLayout.setBackgroundResource(background)
+            return
+        }
+
         val transitionDurationMs = 800
-        (binding.mainLayout.background as AnimationDrawable).apply {
+        (binding.mainLayout.background as? AnimationDrawable)?.apply {
             setEnterFadeDuration(transitionDurationMs)
             setExitFadeDuration(transitionDurationMs)
-            addFrame(d.getFrame(0), 50000)
-            selectDrawable(numberOfFrames - 1)
+            addFrame(d.getFrame(0), 50000) // Arbitrary long duration for the transition frame
+            selectDrawable(numberOfFrames - 1) // Select the newly added frame
         }
+
         Timer().schedule(object : TimerTask() {
             val expectedBackground = background
-
             override fun run() {
-                if (expectedBackground != currentMainBackground)
-                    return
-                binding.mainLayout.setBackgroundResource(currentMainBackground)
-                (binding.mainLayout.background as AnimationDrawable).apply {
-                    setEnterFadeDuration(2500)
-                    setExitFadeDuration(5000)
-                    start()
+                runOnUiThread { // Ensure UI updates are on the main thread
+                    if (expectedBackground != currentMainBackground) return@runOnUiThread
+                    binding.mainLayout.setBackgroundResource(currentMainBackground)
+                    (binding.mainLayout.background as? AnimationDrawable)?.apply {
+                        setEnterFadeDuration(2500)
+                        setExitFadeDuration(5000)
+                        start()
+                    }
                 }
             }
         }, transitionDurationMs.toLong())
@@ -249,27 +246,21 @@ class MainActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         Log.d(tag, "onResume")
-
         networkChangeListener.register()
         if (isNetworkAvailable()) {
-            networkChangeListener.onNetworkAvailable()
+            // If coming back to app and not downloading, refresh
+            if (appListModel.storeAppItem.state != DOWNLOADING) {
+                 refreshAppItem(appListModel.storeAppItem)
+            }
+            networkChangeListener.onNetworkAvailable() // Explicit call for immediate UI update if needed
         } else {
             networkChangeListener.onNetworkUnavailable()
         }
 
+        // Set background based on current state, primarily for when app resumes
         when (appListModel.storeAppItem.state) {
-            INSTALLED -> {
-                setMainBackground(R.drawable.gradient_list_2)
-            }
-            INSTALLED_AND_OUTDATED -> {
-                setMainBackground(R.drawable.gradient_list_2)
-            }
-            NOT_INSTALLED -> {
-                setMainBackground(R.drawable.gradient_list_1)
-            }
-            DOWNLOADING -> {
-                setMainBackground(R.drawable.gradient_list_1)
-            }
+            NOT_INSTALLED -> setMainBackground(R.drawable.gradient_list_1)
+            DOWNLOADING -> setMainBackground(R.drawable.gradient_list_2)
         }
     }
 
@@ -281,10 +272,9 @@ class MainActivity : AppCompatActivity() {
     private fun isNetworkAvailable(): Boolean {
         val connectivityManager = baseContext.getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager?
             ?: return false
-
-        val network = connectivityManager.activeNetwork
-        val capabilities = connectivityManager.getNetworkCapabilities(network)
-        return capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
+        val network = connectivityManager.activeNetwork ?: return false
+        val capabilities = connectivityManager.getNetworkCapabilities(network) ?: return false
+        return capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
     }
 
     interface GithubReleaseAPICallback {
@@ -306,48 +296,33 @@ class MainActivity : AppCompatActivity() {
             override fun onProgress(downloaded: Long, size: Long) {}
             override fun onCompleted(result: String) {
                 Log.d("response body $repo", result)
+                try {
+                    val latestRelease: JSONObject = if (preRelease) {
+                        val releases = JSONArray(result)
+                        if (releases.length() > 0) releases.getJSONObject(0) else {
+                            return
+                        }
+                    } else {
+                        JSONObject(result)
+                    }
 
-                // Parse json
-                val latestRelease: JSONObject
-                if (preRelease) {
-                    val releases = JSONArray(result)
-                    latestRelease = releases.getJSONObject(0)
-                } else {
-                    latestRelease = JSONObject(result)
-                }
-
-                val assets = latestRelease.getJSONArray("assets")
-                val newVersion = latestRelease.getString("tag_name")
-                if (assets.length() > 0) {
-                    val asset = assets.getJSONObject(0)
-                    callback.onCompleted(newVersion, asset.getString("browser_download_url"))
-                } else {
-                    val noAssets = getString(R.string.no_assets)
-                    callback.onFailure("$noAssets $repo")
+                    val assets = latestRelease.getJSONArray("assets")
+                    val newVersion = latestRelease.getString("tag_name")
+                    // Basic check: if a version tag exists, consider it > "0.0"
+                    if (newVersion.isNotBlank() && assets.length() > 0) {
+                        val asset = assets.getJSONObject(0) // Assuming first asset is the APK
+                        callback.onCompleted(newVersion, asset.getString("browser_download_url"))
+                    } else {
+                        val noAssets = getString(R.string.no_assets)
+                    }
+                } catch (e: Exception) {
+                    Log.e(tag, "Error parsing Github release JSON", e)
                 }
             }
             override fun onFailure(error: String) {
                 callback.onFailure(error)
             }
         }, useCache)
-    }
-
-    private fun isAppInstalled(packageName: String): Boolean {
-        return try {
-            packageManager.getPackageInfo(packageName, 0)
-            true
-        } catch (e: PackageManager.NameNotFoundException) {
-            false
-        }
-    }
-
-    private fun getInstalledAppVersion(packageName: String): String? {
-        return try {
-            val packageInfo = packageManager.getPackageInfo(packageName, 0)
-            packageInfo?.versionName
-        } catch (_: PackageManager.NameNotFoundException) {
-            null
-        }
     }
 
     interface DownloadListener<T> {
@@ -357,79 +332,99 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun refreshAppItem(appItem: AppItem, useCache: Boolean = true) {
-        val preReleases = false
-
-        if (appItem.newIsPreRelease != preReleases) {
-            appItem.newVersion = ""
-            appItem.downloadUrl = ""
-            appItem.newIsPreRelease = false
-        }
-
-        appItem.installedVersion = getInstalledAppVersion(appItem.packageName) ?: ""
-
+        // This app only installs, so it's always "NOT_INSTALLED" until downloading
+        // or if an error occurs.
         if (appItem.state == DOWNLOADING) {
-//            downloadAppItem(appItem)
-        } else if (appItem.isOutdated()) {
-            appItem.state = INSTALLED_AND_OUTDATED
-        } else if (appItem.installedVersion != "") {
-            appItem.state = INSTALLED
-        } else {
-            appItem.state = NOT_INSTALLED
+            // If already downloading, let the download progress update the UI.
+            // Only post update if values changed that are not download progress.
+             appListModel.appItemUpdated.postValue(appItem)
+            return
         }
+        // Set to NOT_INSTALLED by default before fetching, allows UI to show "Install"
+        // if downloadUrl is already known from a previous fetch.
+        appItem.state = NOT_INSTALLED
         appListModel.appItemUpdated.postValue(appItem)
 
-        if (isNetworkAvailable() && (appItem.downloadUrl == "" || !useCache)) {
 
-            getNewReleaseVersionGithub(appItem.owner, appItem.repo, preReleases, useCache,
+        if (isNetworkAvailable() && (appItem.downloadUrl.isEmpty() || !useCache)) {
+            // Fetch latest release info
+            getNewReleaseVersionGithub(appItem.owner, appItem.repo, false, useCache, // Assuming preRelease is false
                 object : GithubReleaseAPICallback {
                     override fun onCompleted(version: String, downloadUrl: String) {
-                        appItem.newIsPreRelease = preReleases
+                        appItem.newVersion = version
                         appItem.downloadUrl = downloadUrl
-                        if (appItem.isNewerVersion(version)) {
-                            appItem.newVersion = version
-                            if (appItem.state == INSTALLED) {
-                                appItem.state = INSTALLED_AND_OUTDATED
-                                appListModel.appItemUpdated.postValue(appItem)
-                            }
+                        // Version > "0.0" is implied by a successful callback with a version
+                        if (appItem.state != DOWNLOADING) { // Ensure we don't interrupt a download state
+                           appItem.state = NOT_INSTALLED // Ready to be installed
                         }
+                        appListModel.appItemUpdated.postValue(appItem)
                     }
 
                     override fun onFailure(error: String) {
+                        appItem.downloadUrl = "" // Clear previous URL if fetch failed
+                        appItem.newVersion = ""
+                        appItem.state = NOT_INSTALLED // Allow retry
+                        appListModel.appItemUpdated.postValue(appItem)
                     }
                 })
+        } else if (!isNetworkAvailable()) {
+             appItem.state = NOT_INSTALLED // Reset state, allow retry when network is back
+             appListModel.appItemUpdated.postValue(appItem)
         }
+        // If downloadUrl is already populated and useCache is true, UI should already reflect NOT_INSTALLED
     }
 
     private fun downloadAppItem(appItem: AppItem) {
         if (appItem.downloadUrl.isEmpty()) {
+            appItem.state = NOT_INSTALLED // Reset state
+            appListModel.appItemUpdated.postValue(appItem)
             return
         }
-        appListModel.storeAppItem.state = DOWNLOADING
+        if (!checkInstallPermission()) {
+             val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
+                data = Uri.parse("package:$packageName")
+            }
+            installPermissionLauncher.launch(intent)
+            // Do not proceed to download until permission is granted.
+            // The user can click install again after granting permission.
+            return
+        }
+
+        appItem.state = DOWNLOADING
+        appListModel.appItemUpdated.postValue(appItem) // Update UI to show downloading state
 
         downloadToFile(
             appItem.downloadUrl,
-            "${appItem.packageName}.apk",
+            "${appItem.packageName}.apk", // Consistent naming
             object : DownloadListener<File> {
                 override fun onProgress(downloaded: Long, size: Long) {
                     appItem.bytesDownloaded = downloaded
                     appItem.fileSize = size
-                    appListModel.appItemUpdated.postValue(appItem)
+                    // Only update if state is still DOWNLOADING to avoid race conditions
+                    if(appItem.state == DOWNLOADING) {
+                        appListModel.appItemUpdated.postValue(appItem)
+                    }
                 }
 
                 override fun onCompleted(result: File) {
                     Log.d(tag, "Completed download: $result")
+                    // Use the single LiveData for APK file to trigger install
+                    appListModel.downloadedApkQueue.clear() // Clear old before adding new
                     appListModel.downloadedApkQueue.add(result)
                     appListModel.downloadedApkFile.postValue(result)
-                    appItem.state = NOT_INSTALLED
-                    refreshAppItem(appItem)
+                    
+                    appItem.state = NOT_INSTALLED // Reset state after download for next potential install
+                    // Don't call refreshAppItem here, let install process complete or fail.
+                    // UI should reflect that download is done and install is pending/attempted.
+                    appListModel.appItemUpdated.postValue(appItem)
                 }
 
                 override fun onFailure(error: String) {
-                    appItem.state = NOT_INSTALLED
-                    refreshAppItem(appItem)
+                    appItem.state = NOT_INSTALLED // Reset state on failure
+                    refreshAppItem(appItem, useCache = false) // Attempt to refresh data
                 }
             },
-            useCache = false)
+            useCache = false) // Always download fresh APK
     }
 
     private fun downloadToString(
@@ -439,34 +434,30 @@ class MainActivity : AppCompatActivity() {
         synchronous: Boolean = false,
     ) {
         Log.d(tag, "downloadToString(url=$url, useCache=$useCache)")
-        val request = Request.Builder()
-            .url(url)
-            .build()
+        val request = Request.Builder().url(url).build()
         (if (useCache) client else OkHttpClient()).newCall(request).apply {
             val callback = object : Callback {
                 override fun onResponse(call: Call, response: Response) {
                     if (!response.isSuccessful) {
-                        progressListener.onFailure(getString(R.string.response_error_code, response.code.toString()))
+                        runOnUiThread { progressListener.onFailure(getString(R.string.response_error_code, response.code.toString())) }
                         return
                     }
-
                     val responseBody = response.body?.string()
                     if (responseBody == null) {
-                        progressListener.onFailure(getString(R.string.empty_body))
+                        runOnUiThread { progressListener.onFailure(getString(R.string.empty_body)) }
                         return
                     }
-                    progressListener.onCompleted(responseBody)
+                    runOnUiThread { progressListener.onCompleted(responseBody) }
                 }
-
                 override fun onFailure(call: Call, e: IOException) {
-                    progressListener.onFailure(getString(R.string.download_failed))
+                    runOnUiThread { progressListener.onFailure(getString(R.string.download_failed) + ": " + e.message) }
                 }
             }
             if (!synchronous) this.enqueue(callback)
             else {
                 try {
                     val response = this.execute()
-                    callback.onResponse(this, response)
+                    callback.onResponse(this, response) // This will run on current thread. Ensure listeners are thread-safe or use runOnUiThread
                 } catch (e: IOException) {
                     callback.onFailure(this, e)
                 }
@@ -478,26 +469,32 @@ class MainActivity : AppCompatActivity() {
         url: String,
         filename: String,
         progressListener: DownloadListener<File>,
-        useCache: Boolean = true,
+        useCache: Boolean = true, // Should generally be false for APK files
         synchronous: Boolean = false,
     ) {
-        Log.d(tag, "downloadToFile(url=$url, useCache=$useCache)")
-        val request = Request.Builder()
-            .url(url)
-            .build()
-        (if (useCache) client else OkHttpClient()).newCall(request).apply {
+        Log.d(tag, "downloadToFile(url=$url, filename=$filename, useCache=$useCache)")
+        val request = Request.Builder().url(url).build()
+        // Use a new client for APK download to ensure no caching if not desired
+        val httpClient = if (useCache) client else OkHttpClient()
+
+        httpClient.newCall(request).apply {
             val callback = object : Callback {
                 override fun onResponse(call: Call, response: Response) {
                     if (!response.isSuccessful) {
-                        progressListener.onFailure(getString(R.string.response_error_code, response.code.toString()))
+                        runOnUiThread{ progressListener.onFailure(getString(R.string.response_error_code, response.code.toString()))}
                         return
                     }
 
-                    val contentLength = response.body?.contentLength() ?: -1
-                    var downloadedBytes: Long = 0
-                    val buffer = ByteArray(8192)
+                    val contentLength = response.body?.contentLength() ?: -1L
+                    var downloadedBytes = 0L
+                    val buffer = ByteArray(8192) // 8KB buffer
                     val inputStream = response.body?.byteStream()
-                    val tempFile = File(getExternalFilesDir(null), filename)
+                    // Use app-specific directory in external storage for APKs
+                    val targetDir = File(getExternalFilesDir(null), "apk_downloads")
+                    if (!targetDir.exists()) {
+                        targetDir.mkdirs()
+                    }
+                    val tempFile = File(targetDir, filename)
                     val outputStream = FileOutputStream(tempFile)
 
                     try {
@@ -505,25 +502,30 @@ class MainActivity : AppCompatActivity() {
                         while (inputStream?.read(buffer).also { bytesRead = it ?: -1 } != -1) {
                             outputStream.write(buffer, 0, bytesRead)
                             downloadedBytes += bytesRead
-                            progressListener.onProgress(downloadedBytes, contentLength)
+                            // Update progress on UI thread
+                           runOnUiThread { progressListener.onProgress(downloadedBytes, contentLength) }
                         }
-                        progressListener.onCompleted(tempFile)
-                    } catch (_: Exception) {
-                        progressListener.onFailure(getString(R.string.download_failed))
+                        runOnUiThread{ progressListener.onCompleted(tempFile) }
+                    } catch (e: Exception) {
+                        Log.e(tag, "Error during file download", e)
+                        runOnUiThread{ progressListener.onFailure(getString(R.string.download_failed) + ": " + e.message) }
                     } finally {
-                        inputStream?.close()
-                        outputStream.close()
+                        try { inputStream?.close() } catch (e: IOException) { Log.e(tag, "Error closing input stream", e)}
+                        try { outputStream.close()} catch (e: IOException) { Log.e(tag, "Error closing output stream", e)}
                     }
                 }
 
                 override fun onFailure(call: Call, e: IOException) {
-                    progressListener.onFailure(getString(R.string.download_failed))
+                     Log.e(tag, "Download network failure", e)
+                    runOnUiThread{ progressListener.onFailure(getString(R.string.download_failed) + ": " + e.message) }
                 }
             }
-            if (!synchronous) this.enqueue(callback)
+             if (!synchronous) this.enqueue(callback)
             else {
+                // Synchronous execution (not recommended for network operations on main thread)
                 try {
                     val response = this.execute()
+                    // Ensure callback methods are designed to be called synchronously or dispatch to UI thread
                     callback.onResponse(this, response)
                 } catch (e: IOException) {
                     callback.onFailure(this, e)
@@ -533,52 +535,49 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun installApk(apkFile: File) {
+        if (!apkFile.exists()){
+            return
+        }
         val uri = FileProvider.getUriForFile(
             this,
-            "$packageName.provider",
+            "$packageName.provider", // Ensure this matches AndroidManifest.xml
             apkFile
         )
         if (checkInstallPermission()) {
             val installIntent = Intent(Intent.ACTION_VIEW).apply {
                 setDataAndType(uri, "application/vnd.android.package-archive")
-                flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
-            startActivity(installIntent)
+             try {
+                startActivity(installIntent)
+            } catch (e: Exception) {
+                Log.e(tag, "Error starting APK install activity", e)
+            }
         } else {
-            launchInstallPrompt(uri)
+            // Permission not granted, store URI and prompt again, or guide user.
+            // For simplicity, we just show a toast here. The installPermissionLauncher callback
+            // will try to install if permission is granted later.
+            launchInstallPrompt(uri) // Re-launching prompt, or use a specific stored URI
         }
-    }
-
-    private fun uninstallPackages() {
-        // Uninstall com.xenon.store_installer first (if installed)
-        if (isAppInstalled("com.xenon.store_installer")) {
-            "com.xenon.store_installer".uninstallPackage()
-        }
-    }
-
-    private fun String.uninstallPackage() {
-        val intent = Intent(Intent.ACTION_UNINSTALL_PACKAGE).apply {
-            data = "package:${this@uninstallPackage}".toUri()
-        }
-        startActivity(intent)
     }
 
     private fun checkInstallPermission(): Boolean {
         return packageManager.canRequestPackageInstalls()
     }
 
-    private fun launchInstallPrompt(uri: Uri) {
-        val installIntent = Intent(Intent.ACTION_VIEW).apply {
-            setDataAndType(uri, "application/vnd.android.package-archive")
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION
+    private fun launchInstallPrompt(uri: Uri?) { // Allow nullable URI if we don't always have one ready
+         val intent = Intent(Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES).apply {
+            data = Uri.parse("package:$packageName")
         }
-        installPermissionLauncher.launch(installIntent)
+        // We ask for general permission. If URI is available, it means an install was pending.
+        // The ActivityResult callback for installPermissionLauncher can check if a download was ready.
+        installPermissionLauncher.launch(intent)
     }
-
 
     private fun showToast(message: String) {
         runOnUiThread {
-            Toast.makeText(this, message, Toast.LENGTH_SHORT).show()
+            Toast.makeText(this, message, Toast.LENGTH_LONG).show() // Longer for important messages
         }
     }
 
@@ -590,12 +589,12 @@ class MainActivity : AppCompatActivity() {
 
         override fun onAvailable(network: Network) {
             super.onAvailable(network)
-            onNetworkAvailable()
+            runOnUiThread { onNetworkAvailable() }
         }
 
         override fun onLost(network: Network) {
             super.onLost(network)
-            onNetworkUnavailable()
+            runOnUiThread { onNetworkUnavailable() }
         }
 
         fun register() {
@@ -604,13 +603,23 @@ class MainActivity : AppCompatActivity() {
             val networkRequest = NetworkRequest.Builder()
                 .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
                 .build()
-            connectivityManager.registerNetworkCallback(networkRequest, this)
+            try {
+                connectivityManager.registerNetworkCallback(networkRequest, this)
+            } catch (e: SecurityException) {
+                Log.e(tag, "Failed to register network callback", e)
+                // Handle cases where ACCESS_NETWORK_STATE permission might be missing (though unlikely for app core functionality)
+            }
         }
 
         fun unregister() {
             val connectivityManager =
                 context.getSystemService(CONNECTIVITY_SERVICE) as ConnectivityManager
-            connectivityManager.unregisterNetworkCallback(this)
+            try {
+                connectivityManager.unregisterNetworkCallback(this)
+            } catch (e: IllegalArgumentException) {
+                // Already unregistered or invalid listener
+                Log.w(tag, "Network callback already unregistered or invalid.")
+            }
         }
     }
 }
