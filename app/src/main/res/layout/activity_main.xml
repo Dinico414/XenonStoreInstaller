@@ -6,7 +6,7 @@
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@drawable/gradient_list_1"
-    tools:context=".MainActivity">
+    tools:context="com.xenonware.store.MainActivity">
 
     <TextView
         android:id="@+id/welcomeText"
@@ -50,15 +50,15 @@
         <com.google.android.material.progressindicator.LinearProgressIndicator
             android:id="@+id/progressBar"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            app:indicatorColor="@color/primary"
-            app:trackThickness="64dp"
-            app:trackCornerRadius="37dp"
-            app:trackStopIndicatorSize="0dp"
-            app:trackColor="@color/transparent"
+            android:layout_height="wrap_content"
             android:layout_marginHorizontal="16dp"
             android:layout_marginTop="16dp"
-            android:visibility="invisible"/>
+            android:visibility="invisible"
+            app:indicatorColor="@color/primary"
+            app:trackColor="@color/transparent"
+            app:trackCornerRadius="37dp"
+            app:trackStopIndicatorSize="0dp"
+            app:trackThickness="64dp" />
 
     </FrameLayout>
 

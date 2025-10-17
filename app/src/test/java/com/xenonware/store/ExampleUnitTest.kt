@@ -1,4 +1,4 @@
-package com.xenon.store
+package com.xenonware.store
 
 import org.junit.Test
 

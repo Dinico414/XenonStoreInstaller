@@ -1,11 +1,6 @@
-package com.xenon.store
+package com.xenonware.store
 
 import android.content.res.Resources
-import kotlin.collections.getOrElse
-import kotlin.collections.map
-import kotlin.ranges.until
-import kotlin.text.split
-import kotlin.text.toIntOrNull
 
 class Util {
     companion object {

@@ -1,4 +1,4 @@
-package com.xenon.store.viewmodel
+package com.xenonware.store.viewmodel
 
 interface LiveListItem {
     /**

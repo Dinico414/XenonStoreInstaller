@@ -1,6 +1,5 @@
-package com.xenon.store
+package com.xenonware.store
 
-// import androidx.core.net.toUri // No longer needed
 import android.annotation.SuppressLint
 import android.content.Context
 import android.content.Intent
@@ -29,10 +28,10 @@ import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.core.view.updatePadding
 import androidx.lifecycle.ViewModelProvider
-import com.xenon.store.AppEntryState.DOWNLOADING
-import com.xenon.store.AppEntryState.NOT_INSTALLED
-import com.xenon.store.databinding.ActivityMainBinding
-import com.xenon.store.viewmodel.AppListViewModel
+import com.xenonware.store.AppEntryState.DOWNLOADING
+import com.xenonware.store.AppEntryState.NOT_INSTALLED
+import com.xenonware.store.databinding.ActivityMainBinding
+import com.xenonware.store.viewmodel.AppListViewModel
 import okhttp3.Cache
 import okhttp3.Call
 import okhttp3.Callback

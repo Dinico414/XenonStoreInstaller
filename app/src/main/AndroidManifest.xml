@@ -25,7 +25,7 @@
         android:theme="@style/Theme.Xenon"
         tools:targetApi="tiramisu">
         <activity
-            android:name=".MainActivity"
+            android:name="com.xenonware.store.MainActivity"
             android:exported="true">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
