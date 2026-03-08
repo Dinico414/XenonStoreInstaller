@@ -2,8 +2,8 @@ import com.android.build.api.dsl.ApplicationExtension
 
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.jetbrains.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.jetbrains.kotlin.android)
 }
 
 configure<ApplicationExtension> {
@@ -14,8 +14,8 @@ configure<ApplicationExtension> {
         applicationId = "com.xenonware.store"
         minSdk = 29
         targetSdk = 36
-        versionCode = 5
-        versionName = "0.0"
+        versionCode = 1
+        versionName = "Installer"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
