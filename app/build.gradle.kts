@@ -9,8 +9,8 @@ android {
 
     defaultConfig {
         applicationId = "com.xenonware.store"
-        minSdk = 28
-        targetSdk = 35
+        minSdk = 29
+        targetSdk = 36
         versionCode = 1
         versionName = "0.0"
 
@@ -36,9 +36,6 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_21
         targetCompatibility = JavaVersion.VERSION_21
-    }
-    kotlinOptions {
-        jvmTarget = "21"
     }
 }
 
