@@ -1,9 +1,12 @@
+import com.android.build.api.dsl.ApplicationExtension
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.jetbrains.kotlin.android)
+    alias(libs.plugins.kotlin.compose)
 }
 
-android {
+configure<ApplicationExtension> {
     namespace = "com.xenonware.store"
     compileSdk = 36
 
@@ -11,15 +14,17 @@ android {
         applicationId = "com.xenonware.store"
         minSdk = 29
         targetSdk = 36
-        versionCode = 1
+        versionCode = 4
         versionName = "0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-
+        vectorDrawables {
+            useSupportLibrary = true
+        }
     }
     buildFeatures {
         buildConfig = true
-        viewBinding = true
+        compose = true
     }
 
     buildTypes {
@@ -44,8 +49,6 @@ dependencies {
     implementation(libs.github.xenon.commons)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.appcompat)
-    implementation(libs.material)
-    implementation(libs.androidx.constraintlayout)
     implementation(libs.androidx.ui.text.android)
     implementation(libs.protolite.well.known.types)
     implementation(libs.androidx.animation.android)
@@ -58,5 +61,17 @@ dependencies {
     implementation(libs.logging.interceptor)
     implementation(libs.retrofit)
     implementation(libs.converter.gson)
-    implementation(libs.androidx.swiperefreshlayout)
+
+    // Compose
+    implementation(platform(libs.androidx.compose.bom))
+    implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.compose.ui)
+    implementation(libs.androidx.compose.ui.graphics)
+    implementation(libs.androidx.compose.ui.tooling.preview)
+    implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.compose.runtime.livedata)
+    debugImplementation(libs.androidx.compose.ui.tooling)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
+    androidTestImplementation(platform(libs.androidx.compose.bom))
+    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
 }

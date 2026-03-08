@@ -1,12 +1,5 @@
-<resources xmlns:tools="http://schemas.android.com/tools">
-    <!-- Base application theme. -->
-    <style name="Base.Theme.XenonStoreInstaller" parent="Theme.Material3.DynamicColors.DayNight.NoActionBar">
-        <item name="android:statusBarColor">@android:color/transparent</item>
-        <item name="android:navigationBarColor">@android:color/transparent</item>
-        <item name="android:windowLightStatusBar" tools:targetApi="m">false</item> <!-- false for light icons/text -->
-        <item name="android:windowLightNavigationBar" tools:targetApi="o_mr1">false</item> <!-- false for light icons/text -->
-        <item name="android:windowDrawsSystemBarBackgrounds">true</item>
-        <item name="android:enforceStatusBarContrast" tools:targetApi="q">false</item>
-        <item name="android:enforceNavigationBarContrast" tools:targetApi="q">false</item>
-    </style>
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+
+    <style name="Theme.Xenon" parent="android:Theme.Material.Light.Dialog.NoActionBar" />
 </resources>

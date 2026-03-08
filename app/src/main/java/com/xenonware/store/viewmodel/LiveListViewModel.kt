@@ -23,9 +23,6 @@ open class LiveListViewModel<T: LiveListItem> : ViewModel() {
         liveListEvent.postValue(event)
     }
 
-    /**
-     * returned list should not be modified
-     */
     fun getList(): ArrayList<T> {
         return items
     }
@@ -34,7 +31,7 @@ open class LiveListViewModel<T: LiveListItem> : ViewModel() {
         for (i in 0 until list.size) {
             list[i].id = i
         }
-        if (list.size > 0) {
+        if (list.isNotEmpty()) {
             maxTaskId = list.maxBy { v -> v.id }.id
             sortItems()
         }
