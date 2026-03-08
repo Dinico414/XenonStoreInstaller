@@ -4,8 +4,10 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
@@ -46,9 +48,11 @@ fun BlurryBlobsBackground(modifier: Modifier = Modifier) {
             blob.animate()
         }
     }
+    val background = MaterialTheme.colorScheme.surfaceDim
 
-    Canvas(modifier = modifier) {
+    Canvas(modifier = modifier.background(background)) {
         blobs.forEach { blob ->
+
             // A larger radius creates a softer, more spread-out "blur" effect
             val radius = size.minDimension * 0.8f
             drawCircle(
