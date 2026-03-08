@@ -14,7 +14,7 @@ configure<ApplicationExtension> {
         applicationId = "com.xenonware.store"
         minSdk = 29
         targetSdk = 36
-        versionCode = 4
+        versionCode = 5
         versionName = "0.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
